@@ -13,6 +13,6 @@
   <body>
   <h4><a href="${pageContext.request.contextPath}/uploadForm" >UPLOAD FORM</a></h4>
   <h4><a href="${pageContext.request.contextPath}/uploadAjax" >UPLOAD AJAX</a></h4>
-
+  <h4><a href="${pageContext.request.contextPath}/board/list" >List</a></h4>
   </body>
 </html>

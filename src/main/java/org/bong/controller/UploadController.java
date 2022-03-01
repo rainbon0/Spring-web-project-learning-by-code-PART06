@@ -4,6 +4,8 @@ package org.bong.controller;
 import lombok.extern.log4j.Log4j;
 import net.coobird.thumbnailator.Thumbnailator;
 import org.bong.domain.AttachFileDTO;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -13,12 +15,16 @@ import org.springframework.ui.Model;
 import org.springframework.util.FileCopyUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.net.URLDecoder;
+import java.net.URLEncoder;
 import java.nio.file.Files;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -180,6 +186,84 @@ public class UploadController {
 
     // ? - 예제에서는 브라우저에 보낼 바이더리 데이터가 같은 이미지 파일이라도 확장자가 달라 Content-type명시를 해야한다고 설명되어있다.
     //  그렇다면 비디오 파일도 많은 확장자를 가지는데 위와 같은 처리를 해주어야하나?(ex] mp4...)
+
+
+
+
+
+    @GetMapping(value = "/download", produces = MediaType.APPLICATION_OCTET_STREAM_VALUE)
+    @ResponseBody
+    public ResponseEntity<Resource> downloadFile(@RequestHeader("User-Agent") String userAgent, String fileName){   //  Request Header에 있는 User-agent 값을 통해 디바이스 정보를 확인한다.
+
+        log.info("download file : " + fileName);
+
+        Resource resource = new FileSystemResource("/Users/bongchangyun/upload/"+fileName);
+
+        if(resource.exists() == false){
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        }
+        String resourceName = resource.getFilename();
+
+        log.info("resource : " + resource);
+
+        // remove UUID
+        // _ 기준 뒤쪽 문자열을 resourceOriginalName으로 참조
+        String resourceOriginalName = resourceName.substring(resourceName.indexOf("_") + 1);
+        
+
+        HttpHeaders headers = new HttpHeaders();
+
+        try {
+            String downloadName = null;
+            if(userAgent.contains("Trident")){
+                log.info("IE Browser");
+                downloadName = URLEncoder.encode(resourceName, "UTF-8").replaceAll("/", " ");
+            }else if(userAgent.contains("Edge")){
+                log.info("Edge Browser");
+                downloadName = URLEncoder.encode(resourceName, "UTF-8");
+                log.info("Edge name : " + downloadName);
+            }else{
+                log.info("Chrome browser");
+                downloadName = new String(resourceName.getBytes("UTF-8"), "ISO-8859-1");
+            }
+
+            headers.add("Content-Disposition", "attachment; filename="+ downloadName);
+        } catch (UnsupportedEncodingException e) {
+            e.printStackTrace();
+        }
+
+        return new ResponseEntity<Resource>(resource, headers, HttpStatus.OK);
+    }
+
+
+    // file Delete
+    @PostMapping("/deleteFile")
+    @ResponseBody
+    public ResponseEntity<String> deleteFile(String fileName, String type){
+        log.info("deleteFile : " + fileName);
+        
+        File file;
+
+        try {
+            file = new File("/Users/bongchangyun/upload/" + URLDecoder.decode(fileName, "UTF-8"));
+            file.delete();
+            if(type.equals("image")){
+                String largeFileName = file.getAbsolutePath().replace("s_", "");
+                log.info("largeFuleName : " + largeFileName);
+                file = new File(largeFileName);
+                file.delete();
+
+            }
+        } catch (UnsupportedEncodingException e) {
+            e.printStackTrace();
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        }
+
+        return new ResponseEntity<>("deleted", HttpStatus.OK);
+    }
+
+
+
 }
 
 
